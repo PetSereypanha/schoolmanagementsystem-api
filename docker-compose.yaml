@@ -1,0 +1,86 @@
+services:
+  server:
+    build: .
+    container_name: sms-api-server
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ./src:/app/src
+      - ./test:/app/test
+      - .env:/app/.env
+      - ./upload:/app/upload
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile-nginx
+    container_name: sms-api-nginx
+    depends_on:
+      - server
+    environment:
+      - NGINX_SERVER_NAME=localhost
+      - NEST_HOST=server
+      - NEST_PORT=3000
+      - NGINX_MAX_BODY=100M
+    ports:
+      - "${NX_PORT_KEY}:${NX_PORT}"
+  db:
+    image: postgres:15
+    container_name: sms-api-db
+    environment:
+      - POSTGRES_DB=${DB_DATABASE}
+      - POSTGRES_USER=${DB_USERNAME}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:${DB_PORT_KEY}"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${DB_USERNAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  redis:
+    image: redis:5
+    container_name: sms-api-redis
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT_KEY}"
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    environment:
+      - REDIS_HOSTS=local:sms-api-redis:6379
+    ports:
+      - "${REDIS_COM_PORT}:${REDIS_COM_PORT_KEY}"
+    depends_on:
+      - redis
+  smtp:
+    image: mailhog/mailhog
+    container_name: smtp
+    ports:
+      - "1025:1025" # SMTP port
+      - "8025:8025" # Web UI port
+  keycloak:
+    image: quay.io/keycloak/keycloak:latest
+    environment:
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+      KC_DATABASE: ${DB_TYPE}
+      KC_DB_USERNAME: ${KC_DB_USERNAME}
+      KC_DB_PASSWORD: ${KC_DB_PASSWORD}
+      KC_DB_PORT: ${KC_DB_PORT}
+    ports:
+      - "${KEYCLOAK_PORT}:${KEYCLOAK_PORT_KEY}"
+    command: [ "start-dev" ]
+    env_file:
+      - .env
+    depends_on:
+      - db
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 60s
+volumes:
+  postgres_data:
+    driver: local
