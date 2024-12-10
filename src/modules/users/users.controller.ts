@@ -22,9 +22,10 @@ import {
   ApiParam,
   ApiResponse,
 } from '@nestjs/swagger';
+import { NoCache } from '../common/decorator/no-cache.decorator';
 
 @ApiTags('users')
-@Controller({ path: 'users', version: '1' })
+@Controller( 'users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -45,6 +46,7 @@ export class UsersController {
   })
   @ApiResponse({ status: 404, description: 'User not found.' })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
+  @NoCache()
   @UsePipes(new ValidationPipe())
   create(@Body() createUserDto: CreateUserDto) {
     try {

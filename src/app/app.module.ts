@@ -8,9 +8,13 @@ import { UsersModule } from 'src//modules/users/users.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { redisConfig } from 'src/modules/common/config';
+import { NoCacheInterceptor } from 'src/modules/common/interceptor/no-cache.interceptor';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+    }),
     CacheModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -30,6 +34,10 @@ import { redisConfig } from 'src/modules/common/config';
       provide: APP_INTERCEPTOR,
       useClass: TransformInterceptor,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: NoCacheInterceptor
+    }
   ],
 })
 export class AppModule {}

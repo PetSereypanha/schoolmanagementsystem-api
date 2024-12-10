@@ -15,9 +15,6 @@ import {
 export const setupSwagger = (app: INestApplication) => {
   const customOptions: SwaggerCustomOptions = {
     customSiteTitle: SITE_TITLE,
-    /**
-     * Persist authorization after page refresh
-     */
     swaggerOptions: {
       persistAuthorization: true,
     },

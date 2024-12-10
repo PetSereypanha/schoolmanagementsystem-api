@@ -8,7 +8,7 @@ import {
   MinLength,
   Matches,
 } from 'class-validator';
-import { Exclude, Transform } from 'class-transformer';
+import { Exclude, Expose, Transform } from 'class-transformer';
 
 export class CreateUserDto {
   @ApiProperty({ description: 'Name of the user', minLength: 3 })
@@ -31,14 +31,21 @@ export class CreateUserDto {
 
   @ApiProperty({ description: 'Password of the user', minLength: 8 })
   @MinLength(8, { message: 'Password Min 8 Character' })
-  @Matches(
-    /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
-    {
-      message:
-        'Password must contain at least one uppercase letter, one lowercase letter, one number and one special character',
-    },
-  )
-  @Exclude()
+  @Matches(/^(?=.*[A-Z])/, {
+    message: 'Password must contain at least one uppercase letter',
+  })
+  @Matches(/^(?=.*[a-z])/, {
+    message: 'Password must contain at least one lowercase letter',
+  })
+  @Matches(/^(?=.*[0-9])/, {
+    message: 'Password must contain at least one number',
+  })
+  @Matches(/^(?=.*[!@#$%^&*])/, {
+    message: 'Password must contain at least one special character (!@#$%^&*)',
+  })
+  @MinLength(8, {
+    message: 'Password must be at least 8 characters long',
+  })
   password: string;
 
   @ApiProperty({ description: 'Role of the user', enum: UserRole })
