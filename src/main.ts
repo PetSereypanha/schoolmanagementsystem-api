@@ -5,7 +5,7 @@ import { CustomExceptionFilter } from './modules/common/filter/custom-exception.
 import { PrismaClientExceptionFilter } from './modules/common/filter/prisma-exception.filter';
 import { ConfigService } from '@nestjs/config';
 import { setupSwagger } from 'src/swagger';
-import { I18nValidationPipe } from 'nestjs-i18n';
+import { I18nService, I18nValidationPipe } from 'nestjs-i18n';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -28,7 +28,7 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.useGlobalFilters(
-    new CustomExceptionFilter(),
+    new CustomExceptionFilter(app.get(I18nService)),
     new PrismaClientExceptionFilter(),
   );
   await app.listen(3001);
