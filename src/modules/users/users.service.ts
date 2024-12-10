@@ -13,8 +13,7 @@ import { UserRole } from '@prisma/client';
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createUserDto: CreateUserDto): Promise<CreateUserDto> {
-    try {
+  async create(createUserDto: CreateUserDto) {
       const { name, email, password, role, status } = createUserDto;
       const hashPassword = await bcrypt.hash(password, 10);
 
@@ -61,12 +60,6 @@ export class UsersService {
       }
 
       return newUser;
-    } catch (error) {
-      console.log(error);
-      throw new BadRequestException(error.message);
-    } finally {
-      await this.prisma.$disconnect();
-    }
   }
 
   async findOne(id: string) {
@@ -83,7 +76,6 @@ export class UsersService {
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    try {
       const { name, email, role, status, phone, address, bloodType } =
         updateUserDto;
 
@@ -196,12 +188,6 @@ export class UsersService {
             });
       }
       return updatedUser;
-    } catch (e) {
-      console.log(e);
-      throw new BadRequestException(e.message);
-    } finally {
-      await this.prisma.$disconnect();
-    }
   }
 
   remove(id: string) {

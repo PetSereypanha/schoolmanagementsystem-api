@@ -8,20 +8,21 @@ import {
 import { Request, Response } from 'express';
 
 @Catch(HttpException)
-export class CustomExceptionFilter implements ExceptionFilter {
-  catch(exception: HttpException, host: ArgumentsHost) {
+export class CustomExceptionFilter<T extends HttpException> implements ExceptionFilter {
+  catch(exception: T, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
-    const status = exception.getStatus
-      ? exception.getStatus()
-      : HttpStatus.INTERNAL_SERVER_ERROR;
 
+    const status = exception.getStatus();
+    const exceptionResponse = exception.getResponse();
+    const error =
+      typeof response === 'string'
+        ? { message: exceptionResponse }
+        : (exceptionResponse as object);
+    
     response.status(status).json({
-      statusCode: status,
+      ...error,
       timestamp: new Date().toISOString(),
-      path: request.url,
-      message: exception.message || 'Unexpected error',
     });
   }
 }
