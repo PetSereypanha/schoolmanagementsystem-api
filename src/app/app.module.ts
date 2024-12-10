@@ -9,6 +9,8 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { redisConfig } from 'src/modules/common/config';
 import { NoCacheInterceptor } from 'src/modules/common/interceptor/no-cache.interceptor';
+import { AcceptLanguageResolver, I18nModule, QueryResolver } from 'nestjs-i18n';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -20,6 +22,17 @@ import { NoCacheInterceptor } from 'src/modules/common/interceptor/no-cache.inte
       inject: [ConfigService],
       useFactory: redisConfig,
       isGlobal: true,
+    }),
+    I18nModule.forRoot({
+      fallbackLanguage: 'kh',
+      loaderOptions: {
+        path: join(__dirname, './../i18n/'),
+        watch: true,
+      },
+      resolvers: [
+        { use: QueryResolver, options: ['lang'] },
+        AcceptLanguageResolver,
+      ],
     }),
     UsersModule,
   ],
@@ -36,8 +49,8 @@ import { NoCacheInterceptor } from 'src/modules/common/interceptor/no-cache.inte
     },
     {
       provide: APP_INTERCEPTOR,
-      useClass: NoCacheInterceptor
-    }
+      useClass: NoCacheInterceptor,
+    },
   ],
 })
 export class AppModule {}
