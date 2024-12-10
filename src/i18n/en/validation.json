@@ -1,0 +1,14 @@
+{
+      "required": "{field} is required",
+      "minLength": "{field} must be at least {min} characters",
+      "alphanumeric": "{field} can only contain alphanumeric characters",
+      "invalid": "Invalid {field}",
+      "format": "Invalid {field} format",
+      "exists": "{field} already exists",
+      "role": "Select Role {property}",
+      "status": "Select Status {property}",
+      "uppercase": "Password must contain at least one uppercase letter",
+      "lowercase": "Password must contain at least one lowercase letter",
+      "number": "Password must contain at least one number",
+      "special_character": "Password must contain at least one special character"
+}
