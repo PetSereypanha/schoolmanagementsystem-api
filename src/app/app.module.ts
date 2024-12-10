@@ -33,6 +33,10 @@ import { join } from 'path';
         { use: QueryResolver, options: ['lang'] },
         AcceptLanguageResolver,
       ],
+      typesOutputPath: join(
+        __dirname,
+        './../modules/common/generated/i18n.generated.ts',
+      ),
     }),
     UsersModule,
   ],
