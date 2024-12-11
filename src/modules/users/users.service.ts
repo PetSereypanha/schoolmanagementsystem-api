@@ -8,8 +8,6 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from '../prisma';
 import * as bcrypt from 'bcrypt';
 import { UserRole } from '@prisma/client';
-import { ResponseUserDto } from './dto/response-user.dto';
-import { plainToInstance } from 'class-transformer';
 
 @Injectable()
 export class UsersService {
