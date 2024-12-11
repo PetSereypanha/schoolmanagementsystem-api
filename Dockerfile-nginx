@@ -1,11 +1,18 @@
 FROM nginx:1.24.0-alpine
 
-COPY ./docker/entrypoint-nginx.sh /
+# Create directory for scripts
+RUN mkdir -p /docker-entrypoint.d
 
+# Copy entrypoint script
+COPY ./docker/entrypoint-nginx.sh /docker-entrypoint.d/
+
+# Set permissions
 RUN set -ex && \
     apk add --no-cache bash && \
-    chmod +x /entrypoint-nginx.sh
+    chmod +x /docker-entrypoint.d/entrypoint-nginx.sh
 
+# Copy nginx template
 COPY ./docker/vhost.template /etc/nginx/conf.d/vhost.template
 
-CMD ["/entrypoint-nginx.sh"]
+# Update entrypoint path
+ENTRYPOINT ["/docker-entrypoint.d/entrypoint-nginx.sh"]
