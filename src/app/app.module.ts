@@ -26,17 +26,14 @@ import { join } from 'path';
     I18nModule.forRoot({
       fallbackLanguage: 'kh',
       loaderOptions: {
-        path: join(__dirname, './../i18n/'),
+        path: join(__dirname, '../i18n/'),
         watch: true,
       },
       resolvers: [
         { use: QueryResolver, options: ['lang'] },
         AcceptLanguageResolver,
       ],
-      typesOutputPath: join(
-        __dirname,
-        './../modules/common/generated/i18n.generated.ts',
-      ),
+      typesOutputPath: join(__dirname, '../common/generated/i18n.generated.ts'),
     }),
     UsersModule,
   ],

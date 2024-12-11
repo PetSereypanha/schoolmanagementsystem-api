@@ -9,8 +9,7 @@ import {
   ParseUUIDPipe,
   NotFoundException,
   BadRequestException,
-  UsePipes,
-  ValidationPipe,
+  UseInterceptors,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -23,9 +22,10 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { NoCache } from '../common/decorator/no-cache.decorator';
+import type { ResponseUserDto } from './dto/response-user.dto';
 
 @ApiTags('users')
-@Controller( 'users')
+@Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
@@ -47,7 +47,6 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found.' })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @NoCache()
-  @UsePipes(new ValidationPipe())
   create(@Body() createUserDto: CreateUserDto) {
     try {
       return this.usersService.create(createUserDto);
@@ -68,9 +67,11 @@ export class UsersController {
   })
   @ApiResponse({ status: 404, description: 'User not found.' })
   @Get(':id')
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<ResponseUserDto> {
     try {
-      return this.usersService.findOne(id);
+      return await this.usersService.findOne(id);
     } catch (error) {
       if (error.status === 404) {
         throw new NotFoundException(error.message);
@@ -95,7 +96,6 @@ export class UsersController {
   })
   @ApiResponse({ status: 404, description: 'User not found.' })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
-  @UsePipes(new ValidationPipe())
   @Patch(':id')
   update(
     @Param('id', ParseUUIDPipe) id: string,
