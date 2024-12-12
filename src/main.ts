@@ -2,7 +2,7 @@ import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from 'src/app/app.module';
 import { CustomExceptionFilter } from './modules/common/filter/custom-exception.filter';
-import { PrismaClientExceptionFilter } from './modules/common/filter/prisma-exception.filter';
+import { PrismaExceptionFilter } from './modules/common/filter/prisma-exception.filter';
 import { ConfigService } from '@nestjs/config';
 import { setupSwagger } from 'src/swagger';
 import { I18nService, I18nValidationPipe } from 'nestjs-i18n';
@@ -30,7 +30,7 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.useGlobalFilters(
     new CustomExceptionFilter(app.get(I18nService)),
-    new PrismaClientExceptionFilter(),
+    new PrismaExceptionFilter(app.get(I18nService)),
   );
   await app.listen(3001);
 }

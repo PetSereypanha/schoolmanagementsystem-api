@@ -1,5 +1,5 @@
 import {
-  BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -24,7 +24,7 @@ export class UsersService {
     });
 
     if (existingUser) {
-      throw new BadRequestException('User already exists');
+      throw new ConflictException('User already exists');
     }
     const newUser = await this.prisma.user.create({
       data: {
@@ -87,7 +87,7 @@ export class UsersService {
     });
     console.log(existingUser);
     if (existingUser && existingUser.id !== id) {
-      throw new BadRequestException('User already exists');
+      throw new ConflictException('User already exists');
     }
     const updatedUser = await this.prisma.user.update({
       where: { id: String(id) },
