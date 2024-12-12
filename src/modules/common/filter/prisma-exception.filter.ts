@@ -1,41 +1,57 @@
-import {
-  ExceptionFilter,
-  Catch,
-  ArgumentsHost,
-  HttpStatus,
-} from '@nestjs/common';
-import { Response } from 'express';
+import { ArgumentsHost, Catch, HttpStatus } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { I18nService } from 'nestjs-i18n';
+import { BaseExceptionFilter } from './base-exception.filter';
 
 @Catch(Prisma.PrismaClientKnownRequestError)
-export class PrismaClientExceptionFilter implements ExceptionFilter {
-  catch(exception: Prisma.PrismaClientKnownRequestError, host: ArgumentsHost) {
-    const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
-    const request = ctx.getRequest<Request>();
-    const message = this.getErrorMessage(exception);
-
-    response.status(HttpStatus.BAD_REQUEST).json({
-      statusCode: HttpStatus.BAD_REQUEST,
-      message,
-      error: 'Bad Request',
-      timestamp: new Date().toISOString(),
-      path: request.url,
-    });
+export class PrismaExceptionFilter extends BaseExceptionFilter {
+  constructor(protected readonly i18n: I18nService) {
+    super(i18n);
   }
 
-  private getErrorMessage(
+  async catch(
     exception: Prisma.PrismaClientKnownRequestError,
-  ): string {
+    host: ArgumentsHost,
+  ) {
+    const ctx = host.switchToHttp();
+    const response = ctx.getResponse();
+    const request = ctx.getRequest();
+    const lang = request.acceptsLanguages(['en', 'kh']) || 'kh';
+
+    const message = await this.getPrismaErrorMessage(exception, lang);
+
+    const errorResponse = await this.formatError(
+      HttpStatus.BAD_REQUEST,
+      message,
+      'Database Error',
+    );
+
+    this.sendError(response, HttpStatus.BAD_REQUEST, errorResponse);
+  }
+
+  private async getPrismaErrorMessage(
+    exception: Prisma.PrismaClientKnownRequestError,
+    lang: string,
+  ): Promise<string> {
+    const target = Array.isArray(exception.meta?.target)
+      ? exception.meta?.target.join(', ')
+      : exception.meta?.target;
+
     switch (exception.code) {
       case 'P2002':
-        return `Error de unicidade: O campo ${exception.meta.target} já existe.`;
+        return this.i18n.translate('errors.prisma.unique', {
+          lang,
+          args: { field: target },
+        });
       case 'P2014':
-        return 'Error de restrição de chave estrangeira: O registro ainda está sendo referenciado por outro registro.';
+        return this.i18n.translate('errors.prisma.foreignKey', { lang });
       case 'P2003':
-        return `Error de chave estrangeira - P2003: ${exception.message}`;
+        return this.i18n.translate('errors.prisma.constraint', {
+          lang,
+          args: { message: exception.message },
+        });
       default:
-        return 'Error de banco de dados desconhecido.';
+        return this.i18n.translate('errors.prisma.unknown', { lang });
     }
   }
 }

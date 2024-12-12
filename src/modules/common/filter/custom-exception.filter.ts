@@ -1,47 +1,37 @@
 import {
-  ExceptionFilter,
   Catch,
   ArgumentsHost,
   HttpException,
+  HttpStatus,
 } from '@nestjs/common';
-import { Response } from 'express';
-import type { I18nService } from 'nestjs-i18n';
+import { I18nService } from 'nestjs-i18n';
+import { BaseExceptionFilter } from './base-exception.filter';
 
 @Catch(HttpException)
-export class CustomExceptionFilter<T extends HttpException>
-  implements ExceptionFilter
-{
-  constructor(private readonly i18n: I18nService) {}
+export class CustomExceptionFilter extends BaseExceptionFilter {
+  constructor(protected readonly i18n: I18nService) {
+    super(i18n);
+  }
 
-  async catch(exception: T, host: ArgumentsHost) {
+  async catch(exception: HttpException, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
-    const response = ctx.getResponse<Response>();
+    const response = ctx.getResponse();
     const request = ctx.getRequest();
     const status = exception.getStatus();
     const exceptionResponse = exception.getResponse() as any;
+    const lang = request.acceptsLanguages(['en', 'kh']) || 'kh';
 
-    if (exceptionResponse.message && Array.isArray(exceptionResponse.message)) {
-      const translatedMessages = await Promise.all(
-        exceptionResponse.message.map(async (message: string) => {
-          const [key, paramsString] = message.split('|');
-          const params = paramsString ? JSON.parse(paramsString) : {};
-          return this.i18n.translate(key, {
-            lang: request.acceptsLanguages(['en', 'kh']) || 'kh',
-            args: params,
-          });
-        }),
-      );
-      return response.status(status).json({
-        statusCode: status,
-        message: translatedMessages,
-        error: 'Validation Error',
-        timestamp: new Date().toISOString(),
-      });
-    }
+    const message = await this.translateMessage(
+      exceptionResponse.message,
+      lang,
+    );
 
-    response.status(status).json({
-      ...exceptionResponse,
-      timestamp: new Date().toISOString(),
-    });
+    const errorResponse = await this.formatError(
+      status,
+      message,
+      status !== HttpStatus.OK ? exceptionResponse.error : undefined,
+    );
+
+    this.sendError(response, status, errorResponse);
   }
 }

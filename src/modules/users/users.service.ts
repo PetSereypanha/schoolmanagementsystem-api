@@ -6,63 +6,80 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from '../prisma';
-import * as bcrypt from 'bcrypt';
-import { UserRole } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
+import { ResponseUserDto } from './dto/response-user.dto';
+import { plainToInstance } from 'class-transformer';
+import { Hash } from 'src/utils/Hash';
+import { RegisterPayload } from '../auth/payloads/register.payload';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createUserDto: CreateUserDto) {
-      const { name, email, password, role, status } = createUserDto;
-      const hashPassword = await bcrypt.hash(password, 10);
+  async save(
+    userPayLoad: RegisterPayload, 
+    status: UserStatus = UserStatus.ACTIVE, 
+    role: UserRole = UserRole.STUDENT) {
+    const newUser = await this.prisma.user.create({
+      data: {
+        ...userPayLoad,
+        role,
+        status,
+      },
+    });
+    return newUser;
 
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email },
-      });
-
-      if (existingUser) {
-        throw new BadRequestException('User already exists');
-      }
-      const newUser = await this.prisma.user.create({
-        data: {
-          name,
-          email,
-          password: hashPassword,
-          role,
-          status,
-        },
-      });
-
-      if (newUser.role === UserRole.TEACHER) {
-        await this.prisma.teachers.create({
-          data: {
-            name,
-            userId: newUser.id,
-          },
-        });
-      }
-      if (newUser.role === UserRole.STUDENT) {
-        await this.prisma.students.create({
-          data: {
-            name,
-            userId: newUser.id,
-          },
-        });
-      }
-      if (newUser.role === UserRole.PARENT) {
-        await this.prisma.parents.create({
-          data: {
-            name,
-            userId: newUser.id,
-          },
-        });
-      }
-
-      return newUser;
   }
 
-  async findOne(id: string) {
+  async create(createUserDto: CreateUserDto) {
+    const { name, email, password, role, status } = createUserDto;
+    const hashPassword = await Hash.make(password);
+
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('User already exists');
+    }
+    const newUser = await this.prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashPassword,
+        role,
+        status,
+      },
+    });
+
+    if (newUser.role === UserRole.TEACHER) {
+      await this.prisma.teachers.create({
+        data: {
+          name,
+          userId: newUser.id,
+        },
+      });
+    }
+    if (newUser.role === UserRole.STUDENT) {
+      await this.prisma.students.create({
+        data: {
+          name,
+          userId: newUser.id,
+        },
+      });
+    }
+    if (newUser.role === UserRole.PARENT) {
+      await this.prisma.parents.create({
+        data: {
+          name,
+          userId: newUser.id,
+        },
+      });
+    }
+    return newUser;
+  }
+
+  async findOne(id: string): Promise<ResponseUserDto> {
     const user = await this.prisma.user
       .findFirstOrThrow({
         where: {
@@ -72,122 +89,123 @@ export class UsersService {
       .catch(() => {
         throw new NotFoundException(`User #${id} not found`);
       });
-    return user;
+    console.log(user);
+    return plainToInstance(ResponseUserDto, user);
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-      const { name, email, role, status, phone, address, bloodType } =
-        updateUserDto;
+    const { name, email, role, status, phone, address, bloodType } =
+      updateUserDto;
 
-      const existingUser = await this.prisma.user.findUnique({
-        where: { email },
-      });
-      console.log(existingUser);
-      if (existingUser && existingUser.id !== id) {
-        throw new BadRequestException('User already exists');
-      }
-      const updatedUser = await this.prisma.user.update({
-        where: { id: String(id) },
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    console.log(existingUser);
+    if (existingUser && existingUser.id !== id) {
+      throw new BadRequestException('User already exists');
+    }
+    const updatedUser = await this.prisma.user.update({
+      where: { id: String(id) },
+      data: {
+        name,
+        email,
+        role,
+        status,
+        teacher: {
+          updateMany: {
+            where: { userId: String(id) },
+            data: {
+              name,
+              phone,
+              address,
+              bloodType,
+            },
+          },
+        },
+        student: {
+          updateMany: {
+            where: { userId: String(id) },
+            data: {
+              name,
+              phone,
+              address,
+              bloodType,
+            },
+          },
+        },
+        parent: {
+          updateMany: {
+            where: { userId: String(id) },
+            data: {
+              name,
+              phone,
+              address,
+            },
+          },
+        },
+      },
+      include: {
+        teacher: true,
+        student: true,
+        parent: true,
+      },
+    });
+
+    if (role === UserRole.TEACHER) {
+      await this.prisma.teachers.create({
         data: {
-          name,
-          email,
-          role,
-          status,
-          teacher: {
-            updateMany: {
-              where: { userId: String(id) },
-              data: {
-                name,
-                phone,
-                address,
-                bloodType,
-              },
-            },
-          },
-          student: {
-            updateMany: {
-              where: { userId: String(id) },
-              data: {
-                name,
-                phone,
-                address,
-                bloodType,
-              },
-            },
-          },
-          parent: {
-            updateMany: {
-              where: { userId: String(id) },
-              data: {
-                name,
-                phone,
-                address,
-              },
-            },
-          },
-        },
-        include: {
-          teacher: true,
-          student: true,
-          parent: true,
+          name: name,
+          phone: phone,
+          address: address,
+          bloodType: bloodType,
+          userId: updatedUser.id,
         },
       });
 
-      if (role === UserRole.TEACHER) {
-        await this.prisma.teachers.create({
-          data: {
-            name: name,
-            phone: phone,
-            address: address,
-            bloodType: bloodType,
-            userId: updatedUser.id,
-          },
-        });
+      updatedUser.role === UserRole.STUDENT
+        ? await this.prisma.students.deleteMany({
+            where: { userId: updatedUser.id },
+          })
+        : await this.prisma.parents.deleteMany({
+            where: { userId: updatedUser.id },
+          });
+    } else if (role === UserRole.STUDENT) {
+      await this.prisma.students.create({
+        data: {
+          name: name,
+          phone: phone,
+          address: address,
+          bloodType: bloodType,
+          userId: updatedUser.id,
+        },
+      });
 
-        updatedUser.role === UserRole.STUDENT
-          ? await this.prisma.students.deleteMany({
-              where: { userId: updatedUser.id },
-            })
-          : await this.prisma.parents.deleteMany({
-              where: { userId: updatedUser.id },
-            });
-      } else if (role === UserRole.STUDENT) {
-        await this.prisma.students.create({
-          data: {
-            name: name,
-            phone: phone,
-            address: address,
-            bloodType: bloodType,
-            userId: updatedUser.id,
-          },
-        });
+      updatedUser.role === UserRole.TEACHER
+        ? await this.prisma.teachers.deleteMany({
+            where: { userId: updatedUser.id },
+          })
+        : await this.prisma.parents.deleteMany({
+            where: { userId: updatedUser.id },
+          });
+    } else if (role === UserRole.PARENT) {
+      await this.prisma.parents.create({
+        data: {
+          name: name,
+          phone: phone,
+          address: address,
+          userId: updatedUser.id,
+        },
+      });
 
-        updatedUser.role === UserRole.TEACHER
-          ? await this.prisma.teachers.deleteMany({
-              where: { userId: updatedUser.id },
-            })
-          : await this.prisma.parents.deleteMany({
-              where: { userId: updatedUser.id },
-            });
-      } else if (role === UserRole.PARENT) {
-        await this.prisma.parents.create({
-          data: {
-            name: name,
-            phone: phone,
-            address: address,
-            userId: updatedUser.id,
-          },
-        });
-
-        updatedUser.role === UserRole.STUDENT
-          ? await this.prisma.students.deleteMany({
-              where: { userId: updatedUser.id },
-            })
-          : await this.prisma.teachers.deleteMany({
-              where: { userId: updatedUser.id },
-            });
-      }
-      return updatedUser;
+      updatedUser.role === UserRole.STUDENT
+        ? await this.prisma.students.deleteMany({
+            where: { userId: updatedUser.id },
+          })
+        : await this.prisma.teachers.deleteMany({
+            where: { userId: updatedUser.id },
+          });
+    }
+    return updatedUser;
   }
 
   remove(id: string) {
