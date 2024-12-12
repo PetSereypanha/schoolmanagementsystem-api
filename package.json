@@ -20,6 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
+    "@nestjs-modules/mailer": "^2.0.2",
     "@nestjs/cache-manager": "^2.3.0",
     "@nestjs/common": "^10.4.13",
     "@nestjs/config": "^3.3.0",
@@ -30,6 +31,7 @@
     "@nestjs/platform-express": "^10.4.13",
     "@nestjs/swagger": "^8.1.0",
     "@prisma/client": "^6.0.1",
+    "@types/passport-local": "^1.0.38",
     "bcrypt": "^5.1.1",
     "cache-manager": "^4.0.0",
     "cache-manager-ioredis": "^2.1.0",
@@ -37,9 +39,12 @@
     "class-validator": "^0.14.1",
     "ioredis": "^5.4.1",
     "nestjs-i18n": "^10.5.0",
+    "nestjs-resend": "^1.0.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "passport-local": "^1.0.0",
     "reflect-metadata": "^0.2.2",
+    "resend": "^4.0.1",
     "rxjs": "^7.8.1"
   },
   "devDependencies": {
@@ -50,6 +55,7 @@
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.14",
     "@types/node": "^20.17.9",
+    "@types/passport": "^1.0.17",
     "@types/passport-jwt": "^4.0.1",
     "@types/supertest": "^6.0.2",
     "@typescript-eslint/eslint-plugin": "^6.21.0",

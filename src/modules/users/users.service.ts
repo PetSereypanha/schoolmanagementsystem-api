@@ -6,18 +6,34 @@ import {
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { PrismaService } from '../prisma';
-import * as bcrypt from 'bcrypt';
-import { UserRole } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
 import { ResponseUserDto } from './dto/response-user.dto';
 import { plainToInstance } from 'class-transformer';
+import { Hash } from 'src/utils/Hash';
+import { RegisterPayload } from '../auth/payloads/register.payload';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  async save(
+    userPayLoad: RegisterPayload, 
+    status: UserStatus = UserStatus.ACTIVE, 
+    role: UserRole = UserRole.STUDENT) {
+    const newUser = await this.prisma.user.create({
+      data: {
+        ...userPayLoad,
+        role,
+        status,
+      },
+    });
+    return newUser;
+
+  }
+
   async create(createUserDto: CreateUserDto) {
     const { name, email, password, role, status } = createUserDto;
-    const hashPassword = await bcrypt.hash(password, 10);
+    const hashPassword = await Hash.make(password);
 
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
@@ -60,7 +76,6 @@ export class UsersService {
         },
       });
     }
-
     return newUser;
   }
 
