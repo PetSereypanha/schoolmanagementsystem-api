@@ -22,6 +22,7 @@ import {
 } from '@nestjs/swagger';
 import { NoCache } from '../common/decorator/no-cache.decorator';
 import type { ResponseUserDto } from './dto/response-user.dto';
+import { I18n, I18nContext } from 'nestjs-i18n';
 
 @ApiTags('users')
 @Controller('users')
@@ -46,9 +47,9 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found.' })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @NoCache()
-  create(@Body() createUserDto: CreateUserDto) {
+  create(@Body() createUserDto: CreateUserDto, @I18n() i18n: I18nContext,) {
     try {
-      return this.usersService.create(createUserDto);
+      return this.usersService.create(createUserDto, i18n);
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -68,9 +69,10 @@ export class UsersController {
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
+    @I18n() i18n: I18nContext,
   ): Promise<ResponseUserDto> {
     try {
-      return await this.usersService.findOne(id);
+      return await this.usersService.findOne(id, i18n);
     } catch (error) {
       if (error.status === 404) {
         throw new NotFoundException(error.message);
@@ -99,9 +101,10 @@ export class UsersController {
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
+    @I18n() i18n: I18nContext,
   ) {
     try {
-      return this.usersService.update(id, updateUserDto);
+      return this.usersService.update(id, updateUserDto, i18n);
     } catch (error) {
       if (error.status === 404) {
         throw new NotFoundException(error.message);
@@ -123,9 +126,9 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found.' })
   @ApiResponse({ status: 400, description: 'Bad Request.' })
   @Delete(':id')
-  remove(@Param('id', ParseUUIDPipe) id: string) {
+  remove(@Param('id', ParseUUIDPipe) id: string, @I18n() i18n: I18nContext) {
     try {
-      return this.usersService.remove(id);
+      return this.usersService.remove(id, i18n);
     } catch (error) {
       if (error.status === 404) {
         throw new NotFoundException(error.message);
