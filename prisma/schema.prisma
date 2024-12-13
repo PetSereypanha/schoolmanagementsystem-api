@@ -69,7 +69,7 @@ model Account {
 model VerificationToken {
   id      String   @id @default(uuid())
   email   String
-  token   String   @unique
+  token   String   
   expires DateTime
 
   @@unique([email, token])
@@ -78,7 +78,7 @@ model VerificationToken {
 model PasswordResetToken {
   id      String   @id @default(uuid())
   email   String
-  token   String   @unique
+  token   String  
   expires DateTime
 
   @@unique([email, token])
@@ -87,7 +87,7 @@ model PasswordResetToken {
 model TwoFactorToken {
   id      String   @id @default(uuid())
   email   String
-  token   String   @unique
+  token   String   
   expires DateTime
 
   @@unique([email, token])
