@@ -1,6 +1,7 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -11,9 +12,11 @@ import { ResponseUserDto } from './dto/response-user.dto';
 import { plainToInstance } from 'class-transformer';
 import { Hash } from 'src/utils/Hash';
 import { RegisterPayload } from '../auth/payloads/register.payload';
+import { I18nContext } from 'nestjs-i18n';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   constructor(private readonly prisma: PrismaService) {}
 
   async save(
@@ -31,7 +34,7 @@ export class UsersService {
 
   }
 
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto, i18n: I18nContext) {
     const { name, email, password, role, status } = createUserDto;
     const hashPassword = await Hash.make(password);
 
@@ -40,7 +43,11 @@ export class UsersService {
     });
 
     if (existingUser) {
+<<<<<<< HEAD
       throw new ConflictException('User already exists');
+=======
+      throw new BadRequestException(i18n.t('error.user_not_exist'));
+>>>>>>> refs/remotes/origin/add
     }
     const newUser = await this.prisma.user.create({
       data: {
@@ -79,21 +86,37 @@ export class UsersService {
     return newUser;
   }
 
-  async findOne(id: string): Promise<ResponseUserDto> {
-    const user = await this.prisma.user
-      .findFirstOrThrow({
+  async findOne(id: string, i18n: I18nContext): Promise<ResponseUserDto> {
+    const user = await this.prisma.user.findUnique({
         where: {
           id: String(id),
         },
-      })
-      .catch(() => {
-        throw new NotFoundException(`User #${id} not found`);
       });
-    console.log(user);
+    if(!user) {
+      this.logger.error(`User lookup failed: ID ${id} not found`);
+      throw new NotFoundException(i18n.t('error.user_not_found', {
+        args: { id }
+      }));
+    };
     return plainToInstance(ResponseUserDto, user);
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto) {
+  async findEmail(email: string, i18n: I18nContext) {
+    const user = await this.prisma.user.findUnique({
+        where: {
+          email
+        },
+      });
+    if(!user) {
+      this.logger.error(`User lookup failed ${email} not found`);
+      throw new NotFoundException(i18n.t('error.user_not_found', {
+        args: { email }
+      }));
+    };
+    return user;
+  }
+
+  async update(id: string, updateUserDto: UpdateUserDto, i18n: I18nContext) {
     const { name, email, role, status, phone, address, bloodType } =
       updateUserDto;
 
@@ -102,7 +125,11 @@ export class UsersService {
     });
     console.log(existingUser);
     if (existingUser && existingUser.id !== id) {
+<<<<<<< HEAD
       throw new ConflictException('User already exists');
+=======
+      throw new BadRequestException(i18n.t('error.user_not_exist'));
+>>>>>>> refs/remotes/origin/add
     }
     const updatedUser = await this.prisma.user.update({
       where: { id: String(id) },
@@ -208,7 +235,7 @@ export class UsersService {
     return updatedUser;
   }
 
-  remove(id: string) {
+  remove(id: string, i18n: I18nContext) {
     const user = this.prisma.user.update({
       where: { id: String(id) },
       data: {
@@ -238,7 +265,9 @@ export class UsersService {
       },
     });
     if (!user) {
-      throw new NotFoundException(`User #${id} not found`);
+      throw new NotFoundException(i18n.t('error.user_not_found', {
+        args: { id }
+      }));
     }
     return user;
   }
