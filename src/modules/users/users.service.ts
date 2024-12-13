@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -13,6 +14,7 @@ import { plainToInstance } from 'class-transformer';
 import { Hash } from 'src/utils/Hash';
 import { RegisterPayload } from '../auth/payloads/register.payload';
 import { I18nContext } from 'nestjs-i18n';
+import type { ResetPayload } from '../auth/payloads/reset.payload';
 
 @Injectable()
 export class UsersService {
@@ -31,7 +33,29 @@ export class UsersService {
       },
     });
     return newUser;
+  }
 
+  async updateUserPassword(reset: ResetPayload, i18n: I18nContext) {
+    const { email, password } = reset;
+    const hashPassword = await Hash.make(password);
+
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      throw new NotFoundException(
+        i18n.t('error.user_not_found', {
+          args: { email },
+        }),
+      );
+    }
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashPassword,
+      },
+    });
   }
 
   async create(createUserDto: CreateUserDto, i18n: I18nContext) {
@@ -43,11 +67,7 @@ export class UsersService {
     });
 
     if (existingUser) {
-<<<<<<< HEAD
-      throw new ConflictException('User already exists');
-=======
       throw new BadRequestException(i18n.t('error.user_not_exist'));
->>>>>>> refs/remotes/origin/add
     }
     const newUser = await this.prisma.user.create({
       data: {
@@ -125,11 +145,7 @@ export class UsersService {
     });
     console.log(existingUser);
     if (existingUser && existingUser.id !== id) {
-<<<<<<< HEAD
-      throw new ConflictException('User already exists');
-=======
       throw new BadRequestException(i18n.t('error.user_not_exist'));
->>>>>>> refs/remotes/origin/add
     }
     const updatedUser = await this.prisma.user.update({
       where: { id: String(id) },

@@ -1,5 +1,4 @@
 import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
-import { Sign } from 'crypto';
 import { PrismaService } from '../prisma';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
@@ -9,17 +8,20 @@ import { UserRole, UserStatus } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { Hash } from 'src/utils/Hash';
 import { emit } from 'process';
-import { EmailService } from '../email/email.service';
 import { LoginPayload } from './payloads/login.payload';
+import type { MailService } from '../mail/mail.service';
+import type { ResetPayload } from './payloads/reset.payload';
+import type { ForgotPasswordPayload } from './payloads/forgot.payload';
+import type { NewPasswordPayload } from './payloads/password.payload';
 
 @Injectable()
 export class AuthService {
-  private readonly  logger = new Logger(AuthService.name);
+  private readonly logger = new Logger(AuthService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
-    private readonly userService:  UsersService,
-    private readonly emailService : EmailService,
+    private readonly userService: UsersService,
+    private readonly mailService: MailService,
     private readonly jwtService: JwtService,
   ) {}
   async register(registerPayload: RegisterPayload, i18n: I18nContext) {
@@ -28,44 +30,107 @@ export class AuthService {
       where: {
         email,
       },
-    })
+    });
     if (userExists) {
       throw new ConflictException(i18n.t('error.user_already_existed'));
     }
     const newUser = await this.userService.save(
       registerPayload,
       UserStatus.IN_ACTIVE,
-      UserRole.STUDENT
+      UserRole.STUDENT,
     );
 
     const token = await this.getTokens(newUser.email);
-    await this.updateRefreshToken(
+    await this.updateVerifyRefreshToken(
       newUser.email,
       token.refreshToken,
-      new Date(Date.now() + Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME'))),
+      new Date(
+        Date.now() +
+          Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME')),
+      ),
     );
-    await this.emailService.sendVerification(newUser.email, token.refreshToken);
+    await this.mailService.sendVerification(newUser.email, token.refreshToken);
     return token;
   }
 
   async login(loginPayload: LoginPayload, i18n: I18nContext) {
-    const user = await this.validateUser(loginPayload.email, i18n);
+    const { email } = loginPayload;
+    const user = await this.validateUser(email, i18n);
+    const isPasswordValid = await Hash.compare(user.password, loginPayload.password);
+    if (!isPasswordValid) {
+      this.logger.error(`Login failed: Invalid password for user ${email}`);
+      throw new BadRequestException(i18n.t('error.invalid_credential'));
+    }
     const token = await this.getTokens(user.email);
-    await this.updateRefreshToken(user.email, token.refreshToken, new Date(Date.now() + Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME'))));
+    await this.updateVerifyRefreshToken(
+      user.email,
+      token.refreshToken,
+      new Date(
+        Date.now() +
+          Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME')),
+      ),
+    );
     return token;
   }
 
-  async resetPassword(email: string, i18n: I18nContext) {
-    const user = await this.userService.findEmail(email, i18n);
+  async resetPassword(reset: ResetPayload, i18n: I18nContext) {
+    const user = await this.userService.findEmail(reset.email, i18n);
     if (!user) {
       throw new BadRequestException(i18n.t('error.user_not_exist'));
     }
-    const verirfied = await this.verifyResetToken(user., i18n);
+    const tokenVerify = await this.verifyResetToken(reset.token, i18n);
+    if (tokenVerify.email !== reset.email) {
+      throw new BadRequestException(i18n.t('error.mismatched_email'));
+    }
+    this.userService.updateUserPassword(reset, i18n);
+    await this.mailService.sendPasswordReset(
+      reset.email,
+      tokenVerify.token.token,
+    );
+    return { message: 'Password reset Successful' };
+  }
+
+  async resetEmail(resetEmail: ResetPayload, i18n: I18nContext) {
+    
+    const user = await this.updateNewRefreshToken(resetEmail.email, resetEmail.token, new Date(Date.now() + Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME'))));
 
   }
 
-  async resetEmail(email: string, i18n: I18nContext) {
+  async forgotPassword(
+    forgotPassword: ForgotPasswordPayload,
+    i18n: I18nContext,
+  ) {
+    const user = await this.userService.findEmail(forgotPassword.email, i18n);
+    if (!user) {
+      throw new BadRequestException(i18n.t('error.user_not_exist'));
+    }
+    const token = await this.getTokens(user.email);
+    await this.mailService.sendVerification(user.email, token.refreshToken);
+    return { message: 'Password reset Successful' };
+  }
 
+  async newPassword(newPassword: NewPasswordPayload, i18n: I18nContext) {
+    const decoded = await this.decodeConfirmToken(newPassword.token, i18n);
+    if (!decoded) {
+      throw new BadRequestException(i18n.t('error.invalid_token'));
+    }
+
+    const user = await this.userService.findEmail(decoded, i18n);
+    if (!user) {
+      throw new BadRequestException(i18n.t('error.user_not_exist'));
+    }
+
+    const tokens = await this.getTokens(user.email);
+
+    await this.updateNewRefreshToken(
+      user.email,
+      tokens.refreshToken,
+      new Date(
+        Date.now() +
+          Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME')),
+      ),
+    );
+    return tokens;
   }
 
   async getTokens(email: string) {
@@ -116,22 +181,46 @@ export class AuthService {
     };
   }
 
-  async updateRefreshToken(email: string, token: string, date: Date) {
+  async updateVerifyRefreshToken(email: string, token: string, date: Date) {
     const refreshToken = await this.prisma.verificationToken.findFirst({
-      where:{ email },
+      where: { email },
     });
-    if(!refreshToken) {
+    if (!refreshToken) {
       await this.prisma.verificationToken.create({
         data: {
-         email,
-         token,
-         expires: date
-        }
-       });
+          email,
+          token,
+          expires: date,
+        },
+      });
     }
     await this.prisma.verificationToken.update({
       where: {
-        id : refreshToken.id,
+        id: refreshToken.id,
+      },
+      data: {
+        token,
+        expires: date,
+      },
+    });
+  }
+
+  async updateNewRefreshToken(email: string, token: string, date: Date) {
+    const refreshToken = await this.prisma.verificationToken.findFirst({
+      where: { email },
+    });
+    if (!refreshToken) {
+      await this.prisma.verificationToken.create({
+        data: {
+          email,
+          token,
+          expires: date,
+        },
+      });
+    }
+    await this.prisma.verificationToken.update({
+      where: {
+        id: refreshToken.id,
       },
       data: {
         token,
@@ -153,7 +242,7 @@ export class AuthService {
       const payload = this.jwtService.verify(token, {
         secret: this.configService.get<string>('JWT_VERIFICATION_TOKEN_SECRET'),
       });
-      if  ( typeof payload === 'object' && 'email' in payload) {
+      if (typeof payload === 'object' && 'email' in payload) {
         return payload.email;
       }
     } catch (error) {
@@ -163,5 +252,4 @@ export class AuthService {
       throw new BadRequestException(i18n.t('error.invalid_token'));
     }
   }
-
 }
