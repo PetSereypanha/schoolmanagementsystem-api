@@ -14,5 +14,9 @@
   "we_received_request_to_reset_password": "យើងបានទទួលសំណើរបស់អ្នកឱ្យកំណត់ពាក្យសម្ងាត់ឡើងវិញ។ ប្រសិនបើ\u200Bអ្នក\u200Bមិន\u200Bបាន\u200Bអនុវត្ត\u200Bសកម្មភាព\u200B\u200Bនេះ ហើយ\u200B\u200Bជឿ\u200Bថា\u200Bមាន\u200Bនរណា\u200Bម្នាក់\u200Bធ្វើ\u200Bវា\u200Bជំនួស\u200Bអ្នក សូម\u200Bកុំ\u200Bរវល់នឹង\u200Bអ៊ីមែល\u200Bនេះ\u200B",
   "privacy": "ឯកជនភាព",
   "tos": "លក្ខខណ្ឌនៃសេវាកម្ម",
-  "welcome_to_sms": "សូមស្វាគមន៍មកកាន់ School Management System!"
+  "welcome_to_sms": "សូមស្វាគមន៍មកកាន់ School Management System!",
+  "login_success": "ការចូលប្រើប្រាស់ជោគជ័យ",
+  "registration_success": "ការចុះឈ្មោះជោគជ័យ",
+  "reset_password_success": "ការកែប្រែពាក្យសម្ងាត់ជោគជ័យ",
+  "email_confirmed_success": "ការបញ្ជាក់អ៊ីមែលជោគជ័យ"
 }

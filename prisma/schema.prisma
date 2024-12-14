@@ -29,6 +29,12 @@ enum UserStatus {
   UNKNOW
 }
 
+enum ProviderSocial {
+  GOOGLE
+  FACEBOOK
+  GITHUB
+}
+
 model User {
   id                    String                 @id @default(uuid())
   name                  String
@@ -38,28 +44,30 @@ model User {
   password              String?
   role                  UserRole               @default(UNKNOW)
   gender                UserGender             @default(UNKNOW)
-  accounts              Account[]
+  status                UserStatus             @default(UNKNOW)
+  refresh_token     String? 
+  access_token      String? 
+  token_type        String?
+  scope             String?
+  id_token          String? 
+  session_state     String?
+
   isTwoFactorEnabled    Boolean                @default(false)
   twoFactorConfirmation TwoFactorConfirmation?
-  status                UserStatus             @default(UNKNOW)
   teacher               Teachers[]
   student               Students[]
   parent                Parents[]
+  accounts              Account[]
 }
 
 model Account {
   id                String  @id @default(uuid())
   userId            String
-  type              String
+  byUser            String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+  type              String
+  createdAt DateTime  @default(now()) @db.Timestamptz()
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 

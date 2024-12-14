@@ -10,14 +10,18 @@ import { I18nService, I18nValidationPipe } from 'nestjs-i18n';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
+  // swagger
   if (configService.get('APP_ENV') == 'dev') {
     setupSwagger(app);
   }
+  // enable cors
   app.enableCors({
     origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     allowedHeaders: 'Content-Type, Accept',
   });
+  // global config prefix route
+  app.setGlobalPrefix('api');
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -27,11 +31,11 @@ async function bootstrap() {
     }),
     new I18nValidationPipe(),
   );
-  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
-  app.useGlobalFilters(
-    new CustomExceptionFilter(app.get(I18nService)),
-    new PrismaExceptionFilter(app.get(I18nService)),
-  );
-  await app.listen(3001);
+  const port = configService.get('PORT', 3001);
+  await app.listen(port);
+  console.log(`
+    🚀 Server ready at: http://localhost:${port}
+    📚 Swagger Docs at: http://localhost:${port}/api/docs
+  `);
 }
 bootstrap();

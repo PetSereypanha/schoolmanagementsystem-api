@@ -1,10 +1,10 @@
-import { BadRequestException, ConflictException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma';
 import { ConfigService } from '@nestjs/config';
 import { I18nContext } from 'nestjs-i18n';
 import { RegisterPayload } from './payloads/register.payload';
 import { UsersService } from '../users';
-import { UserRole, UserStatus } from '@prisma/client';
+import { ProviderSocial, UserRole, UserStatus } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { Hash } from 'src/utils/Hash';
 import { emit } from 'process';
@@ -13,6 +13,7 @@ import type { MailService } from '../mail/mail.service';
 import type { ResetPayload } from './payloads/reset.payload';
 import type { ForgotPasswordPayload } from './payloads/forgot.payload';
 import type { NewPasswordPayload } from './payloads/password.payload';
+import { TokenResponse } from './dto/interface.dto';
 
 @Injectable()
 export class AuthService {
@@ -24,76 +25,144 @@ export class AuthService {
     private readonly mailService: MailService,
     private readonly jwtService: JwtService,
   ) {}
-  async register(registerPayload: RegisterPayload, i18n: I18nContext) {
-    const { email } = registerPayload;
+  // REGISTER PROCESS
+  async register(registerPayload: RegisterPayload, i18n: I18nContext): Promise<TokenResponse> {
+      // Validate user 
     const userExists = await this.prisma.user.findUnique({
-      where: {
-        email,
-      },
+      where: { email: registerPayload.email }
     });
     if (userExists) {
+      this.logger.error(`Registration failed: Email ${registerPayload.email} already exists`);
       throw new ConflictException(i18n.t('error.user_already_existed'));
     }
+    // Create new user
     const newUser = await this.userService.save(
       registerPayload,
       UserStatus.IN_ACTIVE,
       UserRole.STUDENT,
     );
 
-    const token = await this.getTokens(newUser.email);
-    await this.updateVerifyRefreshToken(
-      newUser.email,
-      token.refreshToken,
-      new Date(
-        Date.now() +
-          Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME')),
-      ),
-    );
-    await this.mailService.sendVerification(newUser.email, token.refreshToken);
-    return token;
+    // Generate tokens
+    const tokens = await this.getTokens(newUser.id);
+      
+    // Update refresh token
+    await this.updateVerifyRefreshToken(newUser.id, tokens.refreshToken);
+      
+    // Send verification email
+    await this.mailService.sendMailVerification(newUser.email, tokens.refreshToken, i18n);
+
+    return {
+      message: i18n.t('event.register_success'),
+      ...tokens,
+    };
   }
 
-  async login(loginPayload: LoginPayload, i18n: I18nContext) {
-    const { email } = loginPayload;
-    const user = await this.validateUser(email, i18n);
+  // LOGIN PROCESS
+  async login(loginPayload: LoginPayload, i18n: I18nContext): Promise<TokenResponse> {
+    // validate user
+    const user = await this.validateUser(loginPayload.email, i18n);
+    // Check password
     const isPasswordValid = await Hash.compare(user.password, loginPayload.password);
     if (!isPasswordValid) {
-      this.logger.error(`Login failed: Invalid password for user ${email}`);
+      this.logger.error(`Login failed: Invalid password for user ${loginPayload.email}`);
       throw new BadRequestException(i18n.t('error.invalid_credential'));
     }
+    // Generate tokens
     const token = await this.getTokens(user.email);
+    // Update refresh token
     await this.updateVerifyRefreshToken(
-      user.email,
+      user.id,
       token.refreshToken,
-      new Date(
-        Date.now() +
-          Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME')),
-      ),
     );
-    return token;
+    return {
+      message: i18n.t('event.login_success'),
+      ...token,
+    };
   }
 
+  // LOGOUT PROCESS
+  async logout(userId : string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        refresh_token: null
+      }
+    });
+  }
+
+  // RESET PASSWORD PROCESS
   async resetPassword(reset: ResetPayload, i18n: I18nContext) {
+    // validate user
     const user = await this.userService.findEmail(reset.email, i18n);
     if (!user) {
       throw new BadRequestException(i18n.t('error.user_not_exist'));
     }
+    // verify token
     const tokenVerify = await this.verifyResetToken(reset.token, i18n);
     if (tokenVerify.email !== reset.email) {
       throw new BadRequestException(i18n.t('error.mismatched_email'));
     }
-    this.userService.updateUserPassword(reset, i18n);
-    await this.mailService.sendPasswordReset(
-      reset.email,
-      tokenVerify.token.token,
-    );
-    return { message: 'Password reset Successful' };
+    // update password
+    this.userService.updateUserPassword(user.id, reset.password);
+    await this.prisma.verificationToken.update({
+      where: { id: tokenVerify.token.id },
+      data: { 
+        token: tokenVerify.token.token,
+        expires: tokenVerify.token.expires
+      }
+    }).then(() => {
+      this.logger.log(`Token: ${tokenVerify.token.token} marked as done!`);
+    })
+    return { 
+      message: i18n.t('success.password_reset_successful')
+    };
   }
 
+  // RESET EMAIL PROCESS
   async resetEmail(resetEmail: ResetPayload, i18n: I18nContext) {
-    
-    const user = await this.updateNewRefreshToken(resetEmail.email, resetEmail.token, new Date(Date.now() + Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME'))));
+    // validate user
+    const user = await this.prisma.user.findFirst({where: { refresh_token: resetEmail.token}});
+    if (!user) {
+      throw new BadRequestException(i18n.t('error.user_not_exist'));
+    }
+    // validate user
+    const tokenVerify = await this.verifyResetToken(resetEmail.token, i18n);
+    if (tokenVerify.email !== resetEmail.email) {
+      throw new BadRequestException(i18n.t('error.mismatched_email'));
+    }
 
+    // update email
+    const userUpdate = await this.prisma.user.update({
+      where: { email: user.email },
+      data: { 
+        email: resetEmail.email,
+        emailVerified: new Date(),
+      }
+    });
+    // generate tokens
+    const tokens = await this.getTokens(userUpdate.id);
+    // update refresh token
+    await this.updateVerifyRefreshToken(
+      userUpdate.id,
+      tokens.refreshToken,
+    );
+    // send mail
+    await this.mailService.sendMailVerification(
+      resetEmail.email,
+      tokens.refreshToken,
+      i18n
+    );
+    // update table verification token
+    await this.prisma.verificationToken.update({
+      where: { id: tokenVerify.token.id },
+      data: { 
+        token: tokens.refreshToken,
+        expires: tokens.expires
+      }
+    }).then(() => {
+      this.logger.log(`Token: ${tokenVerify.token.token} marked as done!`);
+    })
+    return tokens;
   }
 
   async forgotPassword(
@@ -104,8 +173,8 @@ export class AuthService {
     if (!user) {
       throw new BadRequestException(i18n.t('error.user_not_exist'));
     }
-    const token = await this.getTokens(user.email);
-    await this.mailService.sendVerification(user.email, token.refreshToken);
+    const token = await this.getTokens(user.id);
+    await this.mailService.sendMailPasswordReset(user.email, token.refreshToken, token.expires, i18n);
     return { message: 'Password reset Successful' };
   }
 
@@ -120,48 +189,104 @@ export class AuthService {
       throw new BadRequestException(i18n.t('error.user_not_exist'));
     }
 
-    const tokens = await this.getTokens(user.email);
+    const tokens = await this.getTokens(user.id);
 
-    await this.updateNewRefreshToken(
+    await this.updateVerifyRefreshToken(
       user.email,
       tokens.refreshToken,
-      new Date(
-        Date.now() +
-          Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME')),
-      ),
     );
     return tokens;
   }
 
-  async getTokens(email: string) {
+  async refreshToken(userId: string, refreshToken: string) {
+    const user = await this.prisma.user.findFirst({where: { id: userId }});
+    if (!user) throw new ForbiddenException('User Access Denied');
+    const isRefreshTokenValid = await Hash.compare(refreshToken, user.refresh_token);
+    if (!isRefreshTokenValid) throw new ForbiddenException('User Access Denied');
+    const token = await this.getTokens(user.id);
+    await this.updateVerifyRefreshToken(user.id, token.refreshToken);
+    return token;
+  }
+
+  async handleAuth (req, provider: ProviderSocial, name: string) {
+    const users = req.user;
+    const existingUser = await this.userService.findEmail(users.email, req.i18n);
+    const createToken = async() => {
+      const token = await this.getTokens(users.id);
+      await this.updateVerifyRefreshToken(users.id, token.refreshToken);
+      return token;
+    }
+    if (existingUser) {
+      const providerIntergrate = await this.userService.getIntegrationById(existingUser.id);
+      if (providerIntergrate.some((object) => object.provider  === provider)) {
+        return await createToken();
+      }
+      await this.prisma.account.create({
+        data: {
+          user: { connect: { id: existingUser.id } },
+          provider: provider,
+          providerAccountId: users.id,
+          byUser: existingUser.id,
+          type: 'read:user'
+        }
+      })
+      return await createToken();
+    }
+    const payload = {
+      email: users.email,
+      name,
+      password: existingUser.password,
+    }
+    const newUser = await this.userService.save(
+      payload,
+      UserStatus.ACTIVE,
+      UserRole.STUDENT,
+    );
+    await this.prisma.account.create({
+      data: {
+        byUser: newUser.id,
+        provider: provider,
+        providerAccountId: users.id,
+        userId: newUser.id,
+        type: 'read:user'
+      }
+    })
+    const token = await this.getTokens(newUser.id);
+    await this.updateVerifyRefreshToken(newUser.id, token.refreshToken);
+    return token;
+  }
+
+  async getTokens(userId: string) {
+    const accessTokenExpiry = Number(this.configService.get('JWT_EXPIRATION_TIME'));
+    const refreshTokenExpiry = Number(this.configService.get('JWT_REFRESH_EXPIRATION_TIME'));
+
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         {
-          id: email,
+          id: userId,
         },
         {
           secret: this.configService.get<string>('JWT_SECRET_KEY'),
-          expiresIn: Number(this.configService.get('JWT_EXPIRATION_TIME')),
+          expiresIn: accessTokenExpiry,
         },
       ),
       this.jwtService.signAsync(
         {
-          id: email,
+          id: userId,
         },
         {
           secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-          expiresIn: Number(
-            this.configService.get('JWT_REFRESH_EXPIRATION_TIME'),
-          ),
+          expiresIn: refreshTokenExpiry,
         },
       ),
     ]);
     return {
       accessToken: accessToken,
       refreshToken: refreshToken,
+      expires: new Date(Date.now() + accessTokenExpiry),
     };
   }
-
+  
   async verifyResetToken(token: string, i18n: I18nContext) {
     const resetToken = await this.prisma.verificationToken.findFirst({
       where: {
@@ -181,52 +306,16 @@ export class AuthService {
     };
   }
 
-  async updateVerifyRefreshToken(email: string, token: string, date: Date) {
-    const refreshToken = await this.prisma.verificationToken.findFirst({
-      where: { email },
-    });
-    if (!refreshToken) {
-      await this.prisma.verificationToken.create({
-        data: {
-          email,
-          token,
-          expires: date,
-        },
-      });
-    }
-    await this.prisma.verificationToken.update({
+  async updateVerifyRefreshToken(userId: string, token: string) {
+    const hashedRefreshToken = await Hash.make(token);
+    await this.prisma.user.update({
       where: {
-        id: refreshToken.id,
+        id: userId,
       },
       data: {
-        token,
-        expires: date,
+        refresh_token: hashedRefreshToken,
       },
-    });
-  }
-
-  async updateNewRefreshToken(email: string, token: string, date: Date) {
-    const refreshToken = await this.prisma.verificationToken.findFirst({
-      where: { email },
-    });
-    if (!refreshToken) {
-      await this.prisma.verificationToken.create({
-        data: {
-          email,
-          token,
-          expires: date,
-        },
-      });
-    }
-    await this.prisma.verificationToken.update({
-      where: {
-        id: refreshToken.id,
-      },
-      data: {
-        token,
-        expires: date,
-      },
-    });
+    })
   }
 
   async validateUser(email: string, i18n: I18nContext) {
@@ -251,5 +340,16 @@ export class AuthService {
       }
       throw new BadRequestException(i18n.t('error.invalid_token'));
     }
+  }
+
+  async createEmail(email: string, i18n: I18nContext) {
+    this.prisma.user.update({
+      where: { email },
+      data: { 
+        status: UserStatus.ACTIVE,
+        emailVerified: new Date() 
+      }
+    })
+    return {email: email, message: i18n.t('success.email_confirmed')};
   }
 }

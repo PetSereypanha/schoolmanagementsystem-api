@@ -16,7 +16,6 @@
     "badRequest": "Bad request",
     "forbidden": "Forbidden action",
     "serverError": "Something went wrong",
-    "user_not_found": "User's {field} not found",
     "email_already_conformed": "This email is already confirmed!",
     "user_already_existed": "User with this email already existed!",
     "user_not_exist": "User with this email doesn't exist!"
