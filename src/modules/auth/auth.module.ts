@@ -8,7 +8,6 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users';
 import { MailModule } from '../mail/mail.module';
-import { MailService } from '../mail/mail.service';
 
 @Module({
   imports: [
@@ -19,21 +18,15 @@ import { MailService } from '../mail/mail.service';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: async (configService: ConfigService) => ({
-        secret: configService.get('JWT_SECRET_KEY'),
+        secret: configService.get<string>('JWT_SECRET_KEY'),
         signOptions: {
-          expiresIn: configService.get('JWT_EXPIRATION_TIME'),
+          expiresIn: configService.get<string | number>('JWT_EXPIRATION_TIME'),
         },
       }),
     }),
   ],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    PrismaService,
-    JwtStrategy,
-    RefreshTokenStrategy,
-    MailService,
-  ],
+  providers: [AuthService, PrismaService, JwtStrategy, RefreshTokenStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -14,10 +14,10 @@ import { ProviderSocial, UserRole, UserStatus } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { Hash } from 'src/utils/Hash';
 import { LoginPayload } from './payloads/login.payload';
-import type { MailService } from '../mail/mail.service';
-import type { ResetPayload } from './payloads/reset.payload';
-import type { ForgotPasswordPayload } from './payloads/forgot.payload';
-import type { NewPasswordPayload } from './payloads/password.payload';
+import { MailService } from '../mail/mail.service';
+import { ResetPayload } from './payloads/reset.payload';
+import { ForgotPasswordPayload } from './payloads/forgot.payload';
+import { NewPasswordPayload } from './payloads/password.payload';
 import { TokenResponse } from './dto/interface.dto';
 
 @Injectable()
@@ -79,8 +79,8 @@ export class AuthService {
     const user = await this.validateUser(loginPayload.email, i18n);
     // Check password
     const isPasswordValid = await Hash.compare(
-      user.password,
       loginPayload.password,
+      user.password,
     );
     if (!isPasswordValid) {
       this.logger.error(
@@ -100,7 +100,7 @@ export class AuthService {
 
   // LOGOUT PROCESS
   async logout(userId: string) {
-    return this.prisma.user.update({
+    return await this.prisma.user.update({
       where: { id: userId },
       data: {
         refresh_token: null,
@@ -121,7 +121,7 @@ export class AuthService {
       throw new BadRequestException(i18n.t('error.mismatched_email'));
     }
     // update password
-    this.userService.updateUserPassword(user.id, reset.password);
+    await this.userService.updateUserPassword(user.id, reset.password);
     await this.prisma.verificationToken
       .update({
         where: { id: tokenVerify.token.id },
@@ -176,7 +176,7 @@ export class AuthService {
         where: { id: tokenVerify.token.id },
         data: {
           token: tokens.refreshToken,
-          expires: tokens.expires,
+          expires: new Date(tokens.expires),
         },
       })
       .then(() => {
@@ -197,6 +197,7 @@ export class AuthService {
     await this.mailService.sendMailPasswordReset(
       user.email,
       token.refreshToken,
+      token.expires,
     );
     return { message: 'Password reset Successful' };
   }
@@ -286,11 +287,11 @@ export class AuthService {
   }
 
   async getTokens(userId: string) {
-    const accessTokenExpiry = Number(
-      this.configService.get('JWT_EXPIRATION_TIME'),
+    const accessTokenExpiry = this.configService.get<number>(
+      'JWT_EXPIRATION_TIME',
     );
-    const refreshTokenExpiry = Number(
-      this.configService.get('JWT_REFRESH_EXPIRATION_TIME'),
+    const refreshTokenExpiry = this.configService.get<number>(
+      'JWT_REFRESH_EXPIRATION_TIME',
     );
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -316,7 +317,7 @@ export class AuthService {
     return {
       accessToken: accessToken,
       refreshToken: refreshToken,
-      expires: new Date(Date.now() + accessTokenExpiry),
+      expires: refreshTokenExpiry,
     };
   }
 

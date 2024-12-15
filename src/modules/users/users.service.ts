@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -14,7 +13,6 @@ import { plainToInstance } from 'class-transformer';
 import { Hash } from 'src/utils/Hash';
 import { RegisterPayload } from '../auth/payloads/register.payload';
 import { I18nContext } from 'nestjs-i18n';
-import type { ResetPayload } from '../auth/payloads/reset.payload';
 
 @Injectable()
 export class UsersService {
@@ -22,17 +20,20 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async save(
-    userPayLoad: RegisterPayload, 
-    status: UserStatus = UserStatus.ACTIVE, 
-    role: UserRole = UserRole.STUDENT) {
-    const newUser = await this.prisma.user.create({
+    userPayLoad: RegisterPayload,
+    status: UserStatus = UserStatus.ACTIVE,
+    role: UserRole = UserRole.STUDENT,
+  ) {
+    const hashPassword = await Hash.make(userPayLoad.password);
+    return await this.prisma.user.create({
       data: {
-        ...userPayLoad,
+        name: userPayLoad.name,
+        email: userPayLoad.email,
+        password: hashPassword,
         role,
         status,
       },
     });
-    return newUser;
   }
 
   async updateUserPassword(userId: string, password: string) {
@@ -40,14 +41,16 @@ export class UsersService {
     const user = await this.prisma.user.findFirst({
       where: { id: userId },
     });
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        password: hashPassword,
-      },
-    }).then(() => {
-      this.logger.log(`User password updated successfully: ${user.email}`);
-    });
+    await this.prisma.user
+      .update({
+        where: { id: user.id },
+        data: {
+          password: hashPassword,
+        },
+      })
+      .then(() => {
+        this.logger.log(`User password updated successfully: ${user.email}`);
+      });
   }
 
   async create(createUserDto: CreateUserDto, i18n: I18nContext) {
@@ -100,29 +103,31 @@ export class UsersService {
 
   async findOne(id: string): Promise<ResponseUserDto> {
     const user = await this.prisma.user.findUnique({
-        where: {
-          id: String(id),
-        },
-      });
-    if(!user) {
+      where: {
+        id: String(id),
+      },
+    });
+    if (!user) {
       this.logger.error(`User lookup failed: ID ${id} not found`);
       throw new NotFoundException(`User with ID ${id} not found`);
-    };
+    }
     return plainToInstance(ResponseUserDto, user);
   }
 
   async findEmail(email: string, i18n: I18nContext) {
     const user = await this.prisma.user.findUnique({
-        where: {
-          email
-        },
-      });
-    if(!user) {
+      where: {
+        email,
+      },
+    });
+    if (!user) {
       this.logger.error(`User lookup failed ${email} not found`);
-      throw new NotFoundException(i18n.t('error.user_not_found', {
-        args: { email }
-      }));
-    };
+      throw new NotFoundException(
+        i18n.t('error.user_not_found', {
+          args: { email },
+        }),
+      );
+    }
     return user;
   }
 
@@ -140,13 +145,15 @@ export class UsersService {
           user: {
             select: {
               name: true,
-              email: true
-            }
-          }
-        }
+              email: true,
+            },
+          },
+        },
       });
     } catch (error) {
-      this.logger.error(`Failed to get integrations for user ${userId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get integrations for user ${userId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -296,9 +303,11 @@ export class UsersService {
       },
     });
     if (!user) {
-      throw new NotFoundException(i18n.t('error.user_not_found', {
-        args: { id }
-      }));
+      throw new NotFoundException(
+        i18n.t('error.user_not_found', {
+          args: { id },
+        }),
+      );
     }
     return user;
   }

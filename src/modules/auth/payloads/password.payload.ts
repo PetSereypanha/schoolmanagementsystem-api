@@ -1,8 +1,7 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsString, Matches, MinLength } from "class-validator";
-import { i18nValidationMessage } from "nestjs-i18n";
-import { SameAs } from "src/modules/common/validator/same-as.validator";
-
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, Matches, MinLength } from 'class-validator';
+import { i18nValidationMessage } from 'nestjs-i18n';
+import { SameAs } from 'src/modules/common/validator/same-as.validator';
 
 export class NewPasswordPayload {
   @ApiProperty({
@@ -12,7 +11,7 @@ export class NewPasswordPayload {
   })
   @IsString()
   token: string;
-  
+
   @ApiProperty({
     description: 'Password of the user',
     minLength: 8,
@@ -34,9 +33,7 @@ export class NewPasswordPayload {
     message: i18nValidationMessage('validation.number'),
   })
   @Matches(/^(?=.*[!@#$%^&*])/, {
-    message: i18nValidationMessage(
-      'validation.special_character',
-    ),
+    message: i18nValidationMessage('validation.special_character'),
   })
   password: string;
 
