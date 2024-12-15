@@ -1,6 +1,6 @@
 import { ArgumentsHost, ExceptionFilter } from '@nestjs/common';
-import { I18nService } from 'nestjs-i18n';
 import { Response } from 'express';
+import { I18nContext } from 'nestjs-i18n';
 
 interface ErrorResponse {
   statusCode: number;
@@ -10,8 +10,6 @@ interface ErrorResponse {
 }
 
 export abstract class BaseExceptionFilter implements ExceptionFilter {
-  constructor(protected readonly i18n: I18nService) {}
-
   abstract catch(exception: unknown, host: ArgumentsHost): Promise<void>;
 
   protected async formatError(
@@ -30,13 +28,15 @@ export abstract class BaseExceptionFilter implements ExceptionFilter {
   protected async translateMessage(
     message: string | string[],
     lang: string,
+    host: ArgumentsHost,
   ): Promise<string | string[]> {
+    const i18n = I18nContext.current(host);
     if (Array.isArray(message)) {
       const translatedMessages = await Promise.all(
         message.map(async (msg) => {
           const [key, paramsString] = msg.split('|');
           const params = paramsString ? JSON.parse(paramsString) : {};
-          return this.i18n.translate(key, { lang, args: params });
+          return i18n.translate(key, { lang, args: params });
         }),
       );
       return translatedMessages as string[];

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   NotFoundException,
@@ -13,6 +14,7 @@ import { plainToInstance } from 'class-transformer';
 import { Hash } from 'src/utils/Hash';
 import { RegisterPayload } from '../auth/payloads/register.payload';
 import { I18nContext } from 'nestjs-i18n';
+import type { ResetPayload } from '../auth/payloads/reset.payload';
 
 @Injectable()
 export class UsersService {
@@ -31,7 +33,21 @@ export class UsersService {
       },
     });
     return newUser;
+  }
 
+  async updateUserPassword(userId: string, password: string) {
+    const hashPassword = await Hash.make(password);
+    const user = await this.prisma.user.findFirst({
+      where: { id: userId },
+    });
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashPassword,
+      },
+    }).then(() => {
+      this.logger.log(`User password updated successfully: ${user.email}`);
+    });
   }
 
   async create(createUserDto: CreateUserDto, i18n: I18nContext) {
@@ -82,7 +98,7 @@ export class UsersService {
     return newUser;
   }
 
-  async findOne(id: string, i18n: I18nContext): Promise<ResponseUserDto> {
+  async findOne(id: string): Promise<ResponseUserDto> {
     const user = await this.prisma.user.findUnique({
         where: {
           id: String(id),
@@ -90,9 +106,7 @@ export class UsersService {
       });
     if(!user) {
       this.logger.error(`User lookup failed: ID ${id} not found`);
-      throw new NotFoundException(i18n.t('error.user_not_found', {
-        args: { id }
-      }));
+      throw new NotFoundException(`User with ID ${id} not found`);
     };
     return plainToInstance(ResponseUserDto, user);
   }
@@ -110,6 +124,31 @@ export class UsersService {
       }));
     };
     return user;
+  }
+
+  async getIntegrationById(userId: string) {
+    try {
+      return await this.prisma.account.findMany({
+        where: {
+          userId: userId,
+        },
+        select: {
+          id: true,
+          provider: true,
+          providerAccountId: true,
+          byUser: true,
+          user: {
+            select: {
+              name: true,
+              email: true
+            }
+          }
+        }
+      });
+    } catch (error) {
+      this.logger.error(`Failed to get integrations for user ${userId}: ${error.message}`);
+      throw error;
+    }
   }
 
   async update(id: string, updateUserDto: UpdateUserDto, i18n: I18nContext) {

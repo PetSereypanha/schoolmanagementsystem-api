@@ -1,7 +1,6 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsEmail, Matches, MinLength } from "class-validator";
 import { i18nValidationMessage } from "nestjs-i18n";
-import { I18nTranslations } from "src/modules/common/generated/i18n.generated";
 
 export class LoginPayload {
 
@@ -11,30 +10,30 @@ export class LoginPayload {
       })
       @IsEmail(
         {},
-        { message: i18nValidationMessage<I18nTranslations>('validation.invalid') },
+        { message: i18nValidationMessage('validation.invalid') },
       )
       @Matches(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, {
-        message: i18nValidationMessage<I18nTranslations>('validation.format'),
+        message: i18nValidationMessage('validation.format'),
       })
       email: string;
     
       @ApiProperty({ description: 'Password of the user', minLength: 8 })
       @MinLength(8, {
-        message: i18nValidationMessage<I18nTranslations>('validation.minLength', {
+        message: i18nValidationMessage('validation.minLength', {
           min: 8,
         }),
       })
       @Matches(/^(?=.*[A-Z])/, {
-        message: i18nValidationMessage<I18nTranslations>('validation.uppercase'),
+        message: i18nValidationMessage('validation.uppercase'),
       })
       @Matches(/^(?=.*[a-z])/, {
-        message: i18nValidationMessage<I18nTranslations>('validation.lowercase'),
+        message: i18nValidationMessage('validation.lowercase'),
       })
       @Matches(/^(?=.*[0-9])/, {
-        message: i18nValidationMessage<I18nTranslations>('validation.number'),
+        message: i18nValidationMessage('validation.number'),
       })
       @Matches(/^(?=.*[!@#$%^&*])/, {
-        message: i18nValidationMessage<I18nTranslations>(
+        message: i18nValidationMessage(
           'validation.special_character',
         ),
       })

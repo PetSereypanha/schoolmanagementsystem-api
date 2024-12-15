@@ -68,11 +68,10 @@ export class UsersController {
   @ApiResponse({ status: 404, description: 'User not found.' })
   @Get(':id')
   async findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-    @I18n() i18n: I18nContext,
+    @Param('id', ParseUUIDPipe) id: string
   ): Promise<ResponseUserDto> {
     try {
-      return await this.usersService.findOne(id, i18n);
+      return await this.usersService.findOne(id);
     } catch (error) {
       if (error.status === 404) {
         throw new NotFoundException(error.message);

@@ -1,7 +1,8 @@
-import type { User, UserGender, UserRole, UserStatus } from '@prisma/client';
-import { Exclude } from 'class-transformer';
+import { User, UserGender, UserRole, UserStatus } from '@prisma/client';
+import { Exclude, Expose } from 'class-transformer';
 
-export class ResponseUserDto implements User {
+@Expose()
+export class ResponseUserDto implements Partial<User> {
   id: string;
   name: string;
   email: string;
@@ -9,9 +10,17 @@ export class ResponseUserDto implements User {
   image: string;
   role: UserRole;
   gender: UserGender;
-  isTwoFactorEnabled: boolean;
   status: UserStatus;
-
+  isTwoFactorEnabled: boolean;
+  scope?: string;
+  token_type?: string;
+  access_token?: string;
+  refresh_token?: string;
+  
   @Exclude()
   password: string;
+
+  constructor(partial: Partial<ResponseUserDto>) {
+    Object.assign(this, partial);
+  }
 }

@@ -2,10 +2,10 @@ import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from 'src/app/app.module';
 import { CustomExceptionFilter } from './modules/common/filter/custom-exception.filter';
-import { PrismaClientExceptionFilter } from './modules/common/filter/prisma-exception.filter';
+import { PrismaExceptionFilter } from './modules/common/filter/prisma-exception.filter';
 import { ConfigService } from '@nestjs/config';
 import { setupSwagger } from 'src/swagger';
-import { I18nService, I18nValidationPipe } from 'nestjs-i18n';
+import { I18nMiddleware, I18nValidationExceptionFilter, I18nValidationPipe } from "nestjs-i18n";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,11 +27,19 @@ async function bootstrap() {
     }),
     new I18nValidationPipe(),
   );
+  app.use(I18nMiddleware);
   app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
   app.useGlobalFilters(
-    new CustomExceptionFilter(app.get(I18nService)),
-    new PrismaClientExceptionFilter(),
+    new CustomExceptionFilter(),
+    new PrismaExceptionFilter(),
+    new I18nValidationExceptionFilter(),
   );
-  await app.listen(3001);
+  const port = configService.get('PORT', 3001);
+  await app.listen(port);
+  console.log(`
+    🚀 Server ready at: http://localhost:${port}
+    📚 Swagger Docs at: http://localhost:${port}/api/docs
+  `);
+
 }
 bootstrap();
