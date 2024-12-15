@@ -3,9 +3,7 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
-  Delete,
   HttpCode,
   Req,
   UseGuards,
@@ -26,12 +24,12 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { ForbiddenDto } from '../common/schema/forbidden.dto';
-import { LoginPayload } from './payloads/login.payload';
 import { ForgotPasswordPayload } from './payloads/forgot.payload';
 import RequestWithUser from '../common/interface/request_user.interface';
 import { JwtAuthGuard } from '../common/guard/jwt.guard';
 import { NoCache } from '../common/decorator/no-cache.decorator';
 import { NewPasswordPayload } from './payloads/password.payload';
+import { LoginPayload } from './payloads/login.payload';
 
 @Controller('auth')
 @ApiTags('Authentication')

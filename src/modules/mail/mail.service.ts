@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ResendService } from 'nestjs-resend';
 import { ConfigService } from '@nestjs/config';
 import { viewsEmailTemplate } from './tamplate/tamplate';
+import { PrismaService } from '../prisma';
 
 @Injectable()
 export class MailService {
@@ -11,6 +12,7 @@ export class MailService {
   constructor(
     private readonly resendService: ResendService,
     private readonly configService: ConfigService,
+    private readonly prisma: PrismaService,
   ) {
     this.domain = this.configService.get<string>('APP_URL');
   }
@@ -24,8 +26,19 @@ export class MailService {
     });
   }
 
-  async sendMailPasswordReset(email: string, token: string) {
+  async sendMailPasswordReset(email: string, token: string, date: number) {
     const resetLink = `${this.domain}/auth/new-password?token=${token}`;
+    this.prisma.passwordResetToken
+      .create({
+        data: {
+          token,
+          email,
+          expires: new Date(date),
+        },
+      })
+      .then(() => {
+        this.logger.log(`Password reset created successfully: ${email}`);
+      });
     return this.resendService.send({
       from: 'edu <schoolse4group14.space>',
       to: email,
