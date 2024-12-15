@@ -1,6 +1,9 @@
-import type { EmailTemplate } from "../dto/tamplate.interface";
+import type { EmailTemplate } from '../dto/tamplate.interface';
 
-export const viewsEmailTemplate = (template: EmailTemplate, brandColor: string = '#2563EB'): string => {
+export const viewsEmailTemplate = (
+  template: EmailTemplate,
+  brandColor: string = '#2563EB',
+): string => {
   return `
     <html><head><style>
       body, html { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4; color: #333333; }
@@ -27,5 +30,5 @@ export const viewsEmailTemplate = (template: EmailTemplate, brandColor: string =
         </div>
       </div>
     </body></html>
-  `
-}
+  `;
+};

@@ -18,5 +18,7 @@
   "login_success": "Login Success",
   "registration_success": "Registration Success",
   "reset_password_success": "Reset Password Success",
-  "email_confirmed_success": "Email Confirm Success"
+  "email_confirmed_success": "Email Confirm Success",
+  "password_reset_successful": "Password Reset Successful",
+  "email_already_conformed": "This email is already confirmed!"
 }

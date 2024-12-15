@@ -18,5 +18,7 @@
   "login_success": "ការចូលប្រើប្រាស់ជោគជ័យ",
   "registration_success": "ការចុះឈ្មោះជោគជ័យ",
   "reset_password_success": "ការកែប្រែពាក្យសម្ងាត់ជោគជ័យ",
-  "email_confirmed_success": "ការបញ្ជាក់អ៊ីមែលជោគជ័យ"
+  "email_confirmed_success": "ការបញ្ជាក់អ៊ីមែលជោគជ័យ",
+  "password_reset_successful": "ការកែប្រែពាក្យសម្ងាត់ជោគជ័យ",
+  "email_already_conformed": "អ៊ីមែលនេះត្រូវបានបញ្ជាក់រួចម្តងហើយ!"
 }

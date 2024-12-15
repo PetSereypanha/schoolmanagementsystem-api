@@ -1,7 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsEmail, Matches } from 'class-validator';
 import { i18nValidationMessage } from 'nestjs-i18n';
-import type { I18nTranslations } from 'src/modules/common/generated/i18n.generated';
 
 export class ForgotPasswordPayload {
     @ApiProperty({
@@ -9,10 +8,10 @@ export class ForgotPasswordPayload {
         example: 'user@example.com',
     })
     @IsEmail({},
-        { message: i18nValidationMessage<I18nTranslations>('validation.invalid') },
+        { message: i18nValidationMessage('validation.invalid') },
     )
     @Matches(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, {
-        message: i18nValidationMessage<I18nTranslations>('validation.format'),
+        message: i18nValidationMessage('validation.format'),
     })
     email: string;
 }

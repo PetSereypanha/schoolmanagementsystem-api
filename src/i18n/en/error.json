@@ -16,7 +16,10 @@
     "badRequest": "Bad request",
     "forbidden": "Forbidden action",
     "serverError": "Something went wrong",
-    "email_already_conformed": "This email is already confirmed!",
     "user_already_existed": "User with this email already existed!",
-    "user_not_exist": "User with this email doesn't exist!"
+    "user_not_exist": "User with this email doesn't exist!",
+    "unique": "The field {field} must be unique.",
+    "foreignKey": "Foreign key constraint failed.",
+    "constraint": "Constraint error: {message}",
+    "unknown": "An unknown database error occurred."
 }
