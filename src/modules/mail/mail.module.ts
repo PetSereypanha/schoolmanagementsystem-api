@@ -5,6 +5,7 @@ import { MailService } from './mail.service';
 
 @Module({
   imports: [
+    ConfigModule,
     ResendModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -16,4 +17,4 @@ import { MailService } from './mail.service';
   providers: [MailService],
   exports: [MailService],
 })
-export class EmailModule {}
+export class MailModule {}

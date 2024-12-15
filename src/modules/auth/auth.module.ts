@@ -7,13 +7,14 @@ import { RefreshTokenStrategy } from '../common/strategy/refresh.strategy';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users';
-import { EmailModule } from '../mail/mail.module';
+import { MailModule } from '../mail/mail.module';
+import { MailService } from '../mail/mail.service';
 
 @Module({
   imports: [
     ConfigModule,
     UsersModule,
-    EmailModule,
+    MailModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -26,6 +27,13 @@ import { EmailModule } from '../mail/mail.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, JwtStrategy, RefreshTokenStrategy],
+  providers: [
+    AuthService,
+    PrismaService,
+    JwtStrategy,
+    RefreshTokenStrategy,
+    MailService,
+  ],
+  exports: [AuthService],
 })
 export class AuthModule {}

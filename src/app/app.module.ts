@@ -19,7 +19,7 @@ import * as path from 'path';
 import { RolesGuard } from 'src/modules/common/guard/roles.guard';
 import { JwtAuthGuard } from 'src/modules/common/guard/jwt.guard';
 import { AuthModule } from 'src/modules/auth/auth.module';
-import { EmailModule } from 'src/modules/mail/mail.module';
+import { MailModule } from '../modules/mail/mail.module';
 
 @Module({
   imports: [
@@ -52,7 +52,7 @@ import { EmailModule } from 'src/modules/mail/mail.module';
     }),
     AuthModule,
     UsersModule,
-    EmailModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [

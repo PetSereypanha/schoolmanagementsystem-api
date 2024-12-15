@@ -27,8 +27,8 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
     private readonly userService: UsersService,
-    private readonly mailService: MailService,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
   // REGISTER PROCESS
   async register(

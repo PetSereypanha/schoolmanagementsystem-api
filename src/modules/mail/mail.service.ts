@@ -1,13 +1,13 @@
-// mail.service.ts
 import { Injectable, Logger } from '@nestjs/common';
-import type { ResendService } from 'nestjs-resend';
-import type { ConfigService } from '@nestjs/config';
+import { ResendService } from 'nestjs-resend';
+import { ConfigService } from '@nestjs/config';
 import { viewsEmailTemplate } from './tamplate/tamplate';
 
 @Injectable()
 export class MailService {
   private domain: string;
   private readonly logger = new Logger(MailService.name);
+
   constructor(
     private readonly resendService: ResendService,
     private readonly configService: ConfigService,
