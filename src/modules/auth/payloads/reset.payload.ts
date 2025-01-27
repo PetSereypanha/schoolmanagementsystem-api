@@ -8,10 +8,7 @@ export class ResetPayload {
     description: 'Email of the user',
     example: 'user@example.com',
   })
-  @IsEmail(
-    {},
-    { message: i18nValidationMessage('validation.invalid') },
-  )
+  @IsEmail({}, { message: i18nValidationMessage('validation.invalid') })
   @Matches(/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/, {
     message: i18nValidationMessage('validation.format'),
   })
@@ -46,9 +43,7 @@ export class ResetPayload {
     message: i18nValidationMessage('validation.number'),
   })
   @Matches(/^(?=.*[!@#$%^&*])/, {
-    message: i18nValidationMessage(
-      'validation.special_character',
-    ),
+    message: i18nValidationMessage('validation.special_character'),
   })
   password: string;
 

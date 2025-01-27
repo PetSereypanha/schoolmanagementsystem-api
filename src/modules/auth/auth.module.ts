@@ -8,25 +8,47 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { UsersModule } from '../users';
 import { MailModule } from '../mail/mail.module';
+import { PassportModule } from '@nestjs/passport';
+import { FacebookStrategy } from "../common/strategy/facebook.strategy";
+import { GoogleStrategy } from "../common/strategy/google.strategy";
 
 @Module({
   imports: [
     ConfigModule,
     UsersModule,
     MailModule,
+    JwtModule.register({}),
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.registerAsync({
       imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => {
+        return {
+          secret: configService.get<string>('JWT_SECRET_KEY'),
+          signOptions: {
+            ...(configService.get<string>('JWT_EXPIRATION_TIME')
+              ? {
+                  expiresIn: Number(configService.get('JWT_EXPIRATION_TIME')),
+                }
+              : {}),
+          },
+        };
+      },
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET_KEY'),
-        signOptions: {
-          expiresIn: configService.get<string | number>('JWT_EXPIRATION_TIME'),
-        },
-      }),
     }),
+
+    // JwtModule.registerAsync({
+    //   imports: [ConfigModule],
+    //   inject: [ConfigService],
+    //   useFactory: async (configService: ConfigService) => ({
+    //     secret: configService.get<string>('JWT_SECRET_KEY'),
+    //     signOptions: {
+    //       expiresIn: configService.get('JWT_EXPIRATION_TIME'),
+    //     },
+    //   }),
+    // }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, PrismaService, JwtStrategy, RefreshTokenStrategy],
+  providers: [AuthService, PrismaService, JwtStrategy, RefreshTokenStrategy, FacebookStrategy, GoogleStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}

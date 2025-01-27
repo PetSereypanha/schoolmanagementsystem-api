@@ -3,7 +3,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Request } from 'express';
-import { TokenPayload } from './jwt.strategy';
+import { JwtPayload } from './jwt.strategy';
 
 @Injectable()
 export class RefreshTokenStrategy extends PassportStrategy(
@@ -22,7 +22,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
     });
   }
 
-  async validate(request: Request, payload: TokenPayload) {
+  async validate(request: Request, payload: JwtPayload) {
     const refreshToken = request?.cookies['auth._refresh_token.local'];
 
     return { ...payload, refreshToken };

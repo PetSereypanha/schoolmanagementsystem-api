@@ -10,9 +10,9 @@ import { PrismaService } from '../prisma';
 import { UserRole, UserStatus } from '@prisma/client';
 import { ResponseUserDto } from './dto/response-user.dto';
 import { plainToInstance } from 'class-transformer';
-import { Hash } from 'src/utils/Hash';
 import { RegisterPayload } from '../auth/payloads/register.payload';
 import { I18nContext } from 'nestjs-i18n';
+import { Hash } from "../../utils/Hash";
 
 @Injectable()
 export class UsersService {

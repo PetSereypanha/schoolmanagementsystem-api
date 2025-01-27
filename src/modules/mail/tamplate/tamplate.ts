@@ -2,7 +2,7 @@ import type { EmailTemplate } from '../dto/tamplate.interface';
 
 export const viewsEmailTemplate = (
   template: EmailTemplate,
-  brandColor: string = '#2563EB',
+  brandColor: string = '#4A9AFF',
 ): string => {
   return `
     <html><head><style>
@@ -17,7 +17,7 @@ export const viewsEmailTemplate = (
       .footer { font-size: 14px; color: #999999; text-align: center; padding: 20px; }
     </style></head><body>
       <div class="container">
-        <div class="header">Squeezy</div>
+        <div class="header">Education</div>
         <div class="content">
           <h1>${template.titleEmail}</h1>
           <p>Thank you for signing up! Please confirm your account by clicking the button below.</p>

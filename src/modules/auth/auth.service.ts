@@ -7,18 +7,18 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma';
 import { ConfigService } from '@nestjs/config';
-import { I18nContext } from 'nestjs-i18n';
+import { I18nContext, logger } from "nestjs-i18n";
 import { RegisterPayload } from './payloads/register.payload';
 import { UsersService } from '../users';
 import { ProviderSocial, UserRole, UserStatus } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
-import { Hash } from 'src/utils/Hash';
 import { LoginPayload } from './payloads/login.payload';
 import { MailService } from '../mail/mail.service';
 import { ResetPayload } from './payloads/reset.payload';
 import { ForgotPasswordPayload } from './payloads/forgot.payload';
 import { NewPasswordPayload } from './payloads/password.payload';
 import { TokenResponse } from './dto/interface.dto';
+import { Hash } from "../../utils/Hash";
 
 @Injectable()
 export class AuthService {
@@ -61,7 +61,7 @@ export class AuthService {
     // Send verification email
     await this.mailService.sendMailVerification(
       newUser.email,
-      tokens.refreshToken,
+      tokens.accessToken
     );
 
     return {
@@ -89,7 +89,7 @@ export class AuthService {
       throw new BadRequestException(i18n.t('error.invalid_credential'));
     }
     // Generate tokens
-    const token = await this.getTokens(user.email);
+    const token = await this.getTokens(user.id);
     // Update refresh token
     await this.updateVerifyRefreshToken(user.id, token.refreshToken);
     return {
@@ -100,6 +100,7 @@ export class AuthService {
 
   // LOGOUT PROCESS
   async logout(userId: string) {
+    logger.log(`User Id: ${userId} logged out`);
     return await this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -197,7 +198,7 @@ export class AuthService {
     await this.mailService.sendMailPasswordReset(
       user.email,
       token.refreshToken,
-      token.expires,
+      token.expires.getTime(),
     );
     return { message: 'Password reset Successful' };
   }
@@ -226,8 +227,8 @@ export class AuthService {
       refreshToken,
       user.refresh_token,
     );
-    if (!isRefreshTokenValid)
-      throw new ForbiddenException('User Access Denied');
+    this.logger.log(`User Id :${userId} and refresh token: ${refreshToken}`);
+    if (!isRefreshTokenValid) throw new ForbiddenException('User Access Denied');
     const token = await this.getTokens(user.id);
     await this.updateVerifyRefreshToken(user.id, token.refreshToken);
     return token;
@@ -245,10 +246,10 @@ export class AuthService {
       return token;
     };
     if (existingUser) {
-      const providerIntergrate = await this.userService.getIntegrationById(
+      const providerIntegration = await this.userService.getIntegrationById(
         existingUser.id,
       );
-      if (providerIntergrate.some((object) => object.provider === provider)) {
+      if (providerIntegration.some((object) => object.provider === provider)) {
         return await createToken();
       }
       await this.prisma.account.create({
@@ -287,10 +288,10 @@ export class AuthService {
   }
 
   async getTokens(userId: string) {
-    const accessTokenExpiry = this.configService.get<number>(
+    const accessTokenExpiry = this.configService.get(
       'JWT_EXPIRATION_TIME',
     );
-    const refreshTokenExpiry = this.configService.get<number>(
+    const refreshTokenExpiry = this.configService.get(
       'JWT_REFRESH_EXPIRATION_TIME',
     );
 
@@ -317,7 +318,7 @@ export class AuthService {
     return {
       accessToken: accessToken,
       refreshToken: refreshToken,
-      expires: refreshTokenExpiry,
+      expires: new Date(Date.now() + parseInt(accessTokenExpiry) * 1000),
     };
   }
 
@@ -363,11 +364,14 @@ export class AuthService {
   async decodeConfirmToken(token: string, i18n: I18nContext) {
     try {
       const payload = this.jwtService.verify(token, {
-        secret: this.configService.get<string>('JWT_VERIFICATION_TOKEN_SECRET'),
+        secret: this.configService.get('JWT_VERIFICATION_TOKEN_SECRET'),
       });
+      this.logger.log(`Token: ${token} decoded: ${JSON.stringify(payload)}`);
+      console.log(payload);
       if (typeof payload === 'object' && 'email' in payload) {
         return payload.email;
       }
+      throw new BadRequestException();
     } catch (error) {
       if (error?.name === 'TokenExpiredError') {
         throw new BadRequestException(i18n.t('error.token_expired'));
@@ -377,12 +381,20 @@ export class AuthService {
   }
 
   async createEmail(email: string, i18n: I18nContext) {
-    this.prisma.user.update({
+    const user = await this.prisma.user.findUnique({
+      where: { email }
+    });
+  
+    if (!user) {
+      throw new BadRequestException(i18n.t('error.user_not_exist'));
+    }
+  
+    await this.prisma.user.update({
       where: { email },
       data: {
-        status: UserStatus.ACTIVE,
         emailVerified: new Date(),
-      },
+        status: UserStatus.ACTIVE
+      }
     });
     return { email: email, message: i18n.t('event.email_already_conformed') };
   }

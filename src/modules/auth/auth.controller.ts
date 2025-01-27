@@ -30,6 +30,12 @@ import { JwtAuthGuard } from '../common/guard/jwt.guard';
 import { NoCache } from '../common/decorator/no-cache.decorator';
 import { NewPasswordPayload } from './payloads/password.payload';
 import { LoginPayload } from './payloads/login.payload';
+import { GoogleOauthGuard } from '../common/guard/google-oauth.guard';
+import { ProviderSocial } from '@prisma/client';
+import { FacebookGuard } from '../common/guard/facebook.guard';
+import { ResetPayload } from './payloads/reset.payload';
+import { RefreshTokenGuard } from '../common/guard/refresh.guard';
+import { ConfirmMail } from './payloads/confirm_mail.payload';
 
 @Controller('auth')
 @ApiTags('Authentication')
@@ -55,16 +61,16 @@ export class AuthController {
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ description: 'Login successful' })
   @ApiBadRequestResponse({ description: 'Unsuccessful login' })
-  @Post('login')
-  async login(@Body() LoginPayload: LoginPayload, @I18n() i18n: I18nContext) {
-    return await this.authService.login(LoginPayload, i18n);
+  @Post('/login')
+  async login(@Body() loginPayload: LoginPayload, @I18n() i18n: I18nContext) {
+    return await this.authService.login(loginPayload, i18n);
   }
 
   @Public()
   @ApiOperation({ summary: 'Forgot password' })
   @ApiResponse({ description: 'Forgot password successful' })
   @ApiBadRequestResponse({ description: 'Unsuccessful forgot password' })
-  @Post('forgot-password')
+  @Post('/forgot-password')
   async forgotPassword(
     @Body() forgotPayload: ForgotPasswordPayload,
     @I18n() i18n: I18nContext,
@@ -72,21 +78,21 @@ export class AuthController {
     return await this.authService.forgotPassword(forgotPayload, i18n);
   }
 
-  @ApiBasicAuth()
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @NoCache()
   @ApiOperation({ summary: 'User logout' })
   @ApiResponse({ description: 'Logout successful' })
-  @Post('logout')
+  @Post('/logout')
   async logout(@Req() req: RequestWithUser) {
     return await this.authService.logout(req.user.id);
   }
 
   @Public()
-  @Post('reset-password')
+  @Post('/reset-password')
   @ApiOperation({ summary: 'Reset password' })
   @ApiResponse({ description: 'Password reset successful' })
-  async resetPassword(
+  async newPassword(
     @Body() payload: NewPasswordPayload,
     @I18n() i18n: I18nContext,
   ) {
@@ -94,20 +100,21 @@ export class AuthController {
   }
 
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(   RefreshTokenGuard)
   @NoCache()
   @ApiOperation({ summary: 'Refresh access token' })
   @ApiResponse({ description: 'Token refreshed' })
   @ApiBadRequestResponse({ description: 'Invalid refresh token' })
-  @Get('refresh-token')
+  @Get('/refresh-token')
   async refreshToken(@Req() req: RequestWithUser) {
+    console.log(req);
     return await this.authService.refreshToken(
       req.user.id,
       req.user.refresh_token,
     );
   }
 
-  @ApiBasicAuth()
+  @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @NoCache()
   @ApiOkResponse({ description: 'Get current user profile' })
@@ -115,14 +122,14 @@ export class AuthController {
     description: 'Unauthorized - Invalid or missing token',
   })
   @ApiOperation({ summary: 'Get authenticated user profile' })
-  @Get('me')
+  @Get('/me')
   async me(@Req() req: RequestWithUser) {
     return req.user;
   }
 
   @Public()
   @NoCache()
-  @Get('reset-token/:token')
+  @Get('/reset-token/:token')
   @ApiOperation({ summary: 'Verify reset token validity' })
   @ApiResponse({ description: 'Token is valid' })
   @ApiBadRequestResponse({ description: 'Invalid or expired token' })
@@ -134,12 +141,53 @@ export class AuthController {
   }
 
   @Public()
-  @Get('confirm-email')
+  @Post('/confirm-email')
   @ApiOperation({ summary: 'Confirm email address' })
   @ApiResponse({ description: 'Email confirmed successfully' })
   @ApiForbiddenResponse({ description: 'Forbidden', type: ForbiddenDto })
-  async confirmEmail(@Param('token') token: string, @I18n() i18n: I18nContext) {
-    const decoded = await this.authService.decodeConfirmToken(token, i18n);
-    return await this.authService.createEmail(decoded.email, i18n);
+  async confirmEmail(@Body() payload: ConfirmMail, @I18n() i18n: I18nContext) {
+    const mail = await this.authService.decodeConfirmToken(payload.token, i18n);
+    return await this.authService.createEmail(mail, i18n);
+  }
+
+  @UseGuards(GoogleOauthGuard)
+  @NoCache()
+  @Post('google/callback')
+  async googleLogin(@Req() req) {
+    return await this.authService.handleAuth(
+      req,
+      ProviderSocial.GOOGLE,
+      'firstname',
+    );
+  }
+
+  @UseGuards(FacebookGuard)
+  @NoCache()
+  @Post('facebook/callback')
+  async facebookLogin(@Req() req) {
+    return await this.authService.handleAuth(
+      req,
+      ProviderSocial.FACEBOOK,
+      'firstname',
+    );
+  }
+
+  @Public()
+  @Post('reset-password')
+  @ApiOperation({ summary: 'User request to reset password' })
+  @ApiForbiddenResponse({ description: 'Forbidden', type: ForbiddenDto })
+  async resetPassword(
+    @Body() payload: ResetPayload,
+    @I18n() i18n: I18nContext,
+  ) {
+    return await this.authService.resetPassword(payload, i18n);
+  }
+
+  @Public()
+  @Post('reset-email')
+  @ApiOperation({ summary: 'User request to reset email' })
+  @ApiForbiddenResponse({ description: 'Forbidden', type: ForbiddenDto })
+  async resetEmail(@Body() payload: ResetPayload, @I18n() i18n: I18nContext) {
+    return await this.authService.resetEmail(payload, i18n);
   }
 }

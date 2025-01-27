@@ -36,7 +36,7 @@ import { MailModule } from '../modules/mail/mail.module';
         },
         typesOutputPath: path.join(
           __dirname,
-          '../common/generated/i18n.generated.ts',
+          '../modules/common/generated/i18n.generated.ts',
         ),
       }),
       resolvers: [
